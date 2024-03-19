@@ -4,14 +4,20 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width" />
-  <title>IC Hello Starter</title>
+  <title>Farmer Market Dashboard</title>
   <base href="/" />
   <link rel="icon" href="/favicon.ico" />
 </head>
 
 <body>
   <div id="root"></div>
-  <script type="module" src="/src/main.jsx"></script>
+  <script type="module">
+    import React from 'react';
+    import { render } from 'react-dom';
+    import FarmerMarketApp from './src/main.jsx';
+    
+    render(<FarmerMarketApp />, document.getElementById('root'));
+  </script>
 </body>
 
 </html>
