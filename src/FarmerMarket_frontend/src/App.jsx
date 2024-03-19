@@ -4,13 +4,16 @@ import { FarmerMarket_backend } from 'declarations/FarmerMarket_backend';
 function App() {
   const [greeting, setGreeting] = useState('');
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
     const name = event.target.elements.name.value;
-    FarmerMarket_backend.greet(name).then((greeting) => {
+    try {
+      const greeting = await FarmerMarket_backend.greet(name);
       setGreeting(greeting);
-    });
-    return false;
+    } catch (error) {
+      console.error('Error fetching greeting:', error);
+      setGreeting('Error fetching greeting');
+    }
   }
 
   return (

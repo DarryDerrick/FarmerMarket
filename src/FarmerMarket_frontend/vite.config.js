@@ -1,43 +1,24 @@
-import { fileURLToPath, URL } from 'url';
-import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
-import environment from 'vite-plugin-environment';
+import reactRefresh from '@vitejs/plugin-react-refresh';
+import { resolve } from 'path';
 import dotenv from 'dotenv';
 
-dotenv.config({ path: '../../.env' });
+// Load environment variables from .env files
+dotenv.config();
 
+// Define the Vite configuration
 export default defineConfig({
-  build: {
-    emptyOutDir: true,
-  },
-  optimizeDeps: {
-    esbuildOptions: {
-      define: {
-        global: "globalThis",
-      },
-    },
-  },
-  server: {
-    proxy: {
-      "/api": {
-        target: "http://127.0.0.1:4943",
-        changeOrigin: true,
-      },
-    },
-  },
-  plugins: [
-    react(),
-    environment("all", { prefix: "CANISTER_" }),
-    environment("all", { prefix: "DFX_" }),
-  ],
+  plugins: [reactRefresh()],
   resolve: {
-    alias: [
-      {
-        find: "declarations",
-        replacement: fileURLToPath(
-          new URL("../declarations", import.meta.url)
-        ),
-      },
-    ],
+    alias: {
+      '@': resolve(__dirname, 'src')
+    }
   },
+  define: {
+    // Pass environment variables to the application
+    'import.meta.env': {
+      VITE_BACKEND_URL: JSON.stringify(process.env.VITE_BACKEND_URL),
+      VITE_INTERNET_IDENTITY_URL: JSON.stringify(process.env.VITE_INTERNET_IDENTITY_URL)
+    }
+  }
 });
