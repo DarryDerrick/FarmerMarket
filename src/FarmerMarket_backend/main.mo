@@ -1,6 +1,12 @@
-module FarmerMarket {
-import Time "mo:base/Time";
-  // Define Farmer data structure
+import Int "mo:base/Int";
+import TrieMap "mo:base/TrieMap";
+import Text "mo:base/Text";
+import Iter "mo:base/Iter";
+import _HashMap "mo:base/HashMap";
+import Result "mo:base/Result"; // Importing the Result module
+
+actor FarmerMarket {
+
   type Farmer = {
     id : Text;
     name : Text;
@@ -8,138 +14,72 @@ import Time "mo:base/Time";
     quantity : Nat;
     price : Nat;
     verified : Bool;
+    timestamp : Int;
+    accessLevel : AccessLevel; // Adding the accessLevel field
   };
 
-  // Define Listing data structure
-  type Listing = {
-    farmerId : Text;
-    produce : Text;
-    quantity : Nat;
-    price : Nat;
-    active : Bool;
+  type AccessLevel = {
+    #ADMIN;
+    #USER;
+    #GUEST;
   };
 
-  // Define Order data structure
-  type Order = {
-    orderId : Text;
-    farmerId : Text;
-    buyerId : Text;
-    produce : Text;
-    quantity : Nat;
-    price : Nat;
-    status : Text; // Status: "pending", "completed", "cancelled"
-    timestamp : Time.Time;
+  var farmers = TrieMap.TrieMap<Text, Farmer>(Text.equal, Text.hash);
+  stable var farmerEntries: [(Text, Farmer)] = [];
+
+  system func preupgrade() {
+    farmerEntries := Iter.toArray(farmers.entries());
   };
 
-  // Define Farmer Market state
-  type State = {
-    farmers : HashMap.HashMap<Text, Farmer>;
-    listings : HashMap.HashMap<Text, Listing>;
-    orders : HashMap.HashMap<Text, Order>;
+  system func postupgrade() {
+    farmers := TrieMap.fromEntries(farmerEntries.vals(), Text.equal, Text.hash);
   };
 
-  // Initialize state
-  var state : State = {
-    farmers = HashMap.empty();
-    listings = HashMap.empty();
-    orders = HashMap.empty();
+  public shared func registerFarmer(args : Farmer) : async () {
+    farmers.put(args.id, args);
   };
 
-  // Function to register a new farmer
-  public func registerFarmer(id : Text, name : Text, produce : Text, quantity : Nat, price : Nat) : async () {
-    let farmer : Farmer = {
-      id = id;
-      name = name;
-      produce = produce;
-      quantity = quantity;
-      price = price;
-      verified = false;
+  public shared query func getFarmer(id : Text) : async Result.Result<Farmer, Text> {
+    switch (farmers.get(id)) {
+      case (null) {
+        return #err("Farmer not found");
+      };
+      case (?farmer) {
+        return #ok(farmer);
+      };
     };
-    state.farmers.put(id, farmer);
   };
 
-  // Function to list produce by a farmer
-  public func listProduce(farmerId : Text, produce : Text, quantity : Nat, price : Nat) : async () {
-  assert(state.farmers.containsKey(farmerId), "Farmer not registered");
-
-  let listing : Listing = {
-    farmerId = farmerId;
-    produce = produce;
-    quantity = quantity;
-    price = price;
-    active = true;
+  public shared func updateFarmer(args : Farmer) : async () {
+    farmers.put(args.id, args);
   };
 
-  state.listings.put(produce, listing);
-};
+  public shared func deleteFarmer(id : Text) : async () {
+    farmers.delete(id);
+  };
 
+  public shared query func getAllFarmers() : async [Farmer] {
+    Iter.toArray(farmers.vals());
+  };
 
-  // Function to place an order
-  public func placeOrder(orderId : Text, farmerId : Text, buyerId : Text, produce : Text, quantity : Nat, price : Nat) : async () {
-    assert (state.farmers.containsKey(farmerId), "Farmer not registered");
-    assert (state.listings.containsKey(produce), "Produce not listed");
-    let listing = state.listings.get(produce);
-    assert (listing.active, "Produce not available");
-    assert (listing.quantity >= quantity, "Insufficient quantity available");
-    let order : Order = {
-      orderId = orderId;
-      farmerId = farmerId;
-      buyerId = buyerId;
-      produce = produce;
-      quantity = quantity;
-      price = price;
-      status = "pending";
-      timestamp = Time.now();
+  public shared query func getFarmerAccessLevel(id : Text) : async Result.Result<Text, Text> {
+    switch (farmers.get(id)) {
+      case (null) {
+        return #err("Farmer not found");
+      };
+      case (?farmer) {
+        switch (farmer.accessLevel) {
+          case (#ADMIN) {
+            return #ok("You are an ADMIN");
+          };
+          case (#USER) {
+            return #ok("You are just a USER");
+          };
+          case (#GUEST) {
+            return #ok("You are a GUEST");
+          };
+        };
+      };
     };
-    state.orders.put(orderId, order);
   };
-
-  // Function to mark an order as completed
-  public func completeOrder(orderId : Text) : async () {
-    assert (state.orders.containsKey(orderId), "Order not found");
-    let order = state.orders.get(orderId);
-    assert (order.status == "pending", "Order already completed or cancelled");
-    state.orders.put(orderId, { order with status = "completed" });
-    // Adjust quantity of produce listed by farmer
-    let listing = state.listings.get(order.produce);
-    let newQuantity = listing.quantity - order.quantity;
-    state.listings.put(order.produce, { listing with quantity = newQuantity });
   };
-
-  // Function to cancel an order
-  public func cancelOrder(orderId : Text) : async () {
-    assert (state.orders.containsKey(orderId), "Order not found");
-    let order = state.orders.get(orderId);
-    assert (order.status == "pending", "Order already completed or cancelled");
-    state.orders.put(orderId, { order with status = "cancelled" });
-  };
-
-  // Function to verify farmer
-  public func verifyFarmer(farmerId : Text) : async () {
-    assert (state.farmers.containsKey(farmerId), "Farmer not registered");
-    let farmer = state.farmers.get(farmerId);
-    state.farmers.put(farmerId, { farmer with verified = true });
-  };
-
-  // Function to get all active listings
-  public query func getActiveListings() : async [Listing] {
-    let allListings = state.listings.entries();
-    let activeListings = Array.filter((_, listing) :=  listing.active, allListings);
-    return Array.map((_, listing) :=  listing._2, activeListings);
-  };
-
-  // Function to get all orders for a farmer
-  public query func getFarmerOrders(farmerId : Text) : async [Order] {
-    let allOrders = state.orders.entries();
-    let farmerOrders = Array.filter((_, order) :=  order.farmerId == farmerId, allOrders);
-    return Array.map((_, order) :=  order._2, farmerOrders);
-  };
-
-  // Function to get all orders for a buyer
-  public query func getBuyerOrders(buyerId : Text) : async [Order] {
-    let allOrders = state.orders.entries();
-    let buyerOrders = Array.filter((_, order) :=  order.buyerId == buyerId, allOrders);
-    return Array.map((_, order) :=  order._2, buyerOrders);
-  };
-};
-
