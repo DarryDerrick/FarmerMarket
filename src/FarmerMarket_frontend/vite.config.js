@@ -20,5 +20,11 @@ export default defineConfig({
       VITE_BACKEND_URL: JSON.stringify(process.env.VITE_BACKEND_URL),
       VITE_INTERNET_IDENTITY_URL: JSON.stringify(process.env.VITE_INTERNET_IDENTITY_URL)
     }
+  },
+  esbuild: {
+    // Set the loader for HTML files to 'jsx' to enable JSX syntax parsing
+    loader: {
+      '.html': 'jsx'
+    }
   }
 });
