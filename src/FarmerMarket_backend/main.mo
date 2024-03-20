@@ -5,7 +5,7 @@ import Iter "mo:base/Iter";
 import _HashMap "mo:base/HashMap";
 import Result "mo:base/Result"; // Importing the Result module
 
-actor FarmerMarket {
+actor _FarmerMarket{
 
   type Farmer = {
     id : Text;
